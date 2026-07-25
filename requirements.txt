@@ -1,0 +1,11 @@
+pandas
+numpy
+matplotlib
+seaborn
+scipy
+notebook
+nbformat
+nbclient
+ipykernel
+streamlit
+plotly

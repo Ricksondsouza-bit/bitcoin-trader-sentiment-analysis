@@ -1,0 +1,2 @@
+total_trades,unique_accounts,unique_coins,total_closed_pnl,average_closed_pnl,median_closed_pnl,minimum_closed_pnl,maximum_closed_pnl,win_count,loss_count,win_rate_percent,average_trade_size_usd,total_fees,missing_sentiment_rows
+211224,32,246,10296958.943436,48.74900079269401,0.0,-117990.1041,135329.0901,86869,124355,41.13,5639.451210373822,245857.72056573082,6
