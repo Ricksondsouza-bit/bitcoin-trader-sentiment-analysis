@@ -135,6 +135,12 @@ Run the Streamlit dashboard from the project root:
 streamlit run dashboard/app.py
 ```
 
+For Streamlit Community Cloud, use:
+
+```text
+streamlit_app.py
+```
+
 The dashboard includes:
 
 - Overall metrics

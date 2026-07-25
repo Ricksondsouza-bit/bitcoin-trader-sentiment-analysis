@@ -10,6 +10,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 PROCESSED_DATA_DIR = PROJECT_ROOT / "data" / "processed"
 REPORTS_DIR = PROJECT_ROOT / "outputs" / "reports"
 CHARTS_DIR = PROJECT_ROOT / "outputs" / "charts"
+PUBLIC_CHARTS_DIR = PROJECT_ROOT / "docs" / "assets"
 
 MERGED_DATA_PATH = PROCESSED_DATA_DIR / "trader_sentiment_merged.csv"
 
@@ -36,7 +37,7 @@ CHART_PATHS = {
 
 st.set_page_config(
     page_title="Trader Sentiment Analysis",
-    page_icon="📊",
+    page_icon="BTC",
     layout="wide",
 )
 
@@ -60,10 +61,8 @@ def load_report(path: Path) -> pd.DataFrame:
 
 
 def validate_required_files() -> list[Path]:
-    """Return a list of required files that are missing."""
-    required_paths = [MERGED_DATA_PATH, *REPORT_PATHS.values(), *CHART_PATHS.values()]
-
-    return [path for path in required_paths if not path.exists()]
+    """Return a list of required summary files that are missing."""
+    return [path for path in REPORT_PATHS.values() if not path.exists()]
 
 
 def format_number(value: float) -> str:
@@ -105,11 +104,75 @@ def render_metric_row(metrics: dict[str, float]) -> None:
 
 
 def render_chart(path: Path, caption: str) -> None:
-    """Render a chart image when it exists."""
+    """Render a chart image from full local outputs or public preview assets."""
+    public_path = PUBLIC_CHARTS_DIR / path.name
+
     if path.exists():
-        st.image(str(path), caption=caption, width="stretch")
+        st.image(str(path), caption=caption, use_container_width=True)
+    elif public_path.exists():
+        st.image(str(public_path), caption=caption, use_container_width=True)
     else:
         st.warning(f"Missing chart file: {path.name}")
+
+
+def apply_dashboard_filters(dataframe: pd.DataFrame) -> pd.DataFrame:
+    """Render sidebar filters and return the filtered dataset."""
+    with st.sidebar:
+        st.header("Filters")
+
+        sentiment_options = sorted(dataframe["sentiment_filter"].unique().tolist())
+        selected_sentiments = st.multiselect(
+            "Sentiment",
+            options=sentiment_options,
+            default=sentiment_options,
+        )
+
+        coin_options = sorted(dataframe["coin"].dropna().unique().tolist())
+        selected_coins = st.multiselect(
+            "Coin",
+            options=coin_options,
+            default=coin_options,
+        )
+
+        direction_options = sorted(dataframe["direction"].dropna().unique().tolist())
+        selected_directions = st.multiselect(
+            "Direction",
+            options=direction_options,
+            default=direction_options,
+        )
+
+        minimum_date = dataframe["trade_date"].min().date()
+        maximum_date = dataframe["trade_date"].max().date()
+        selected_date_range = st.date_input(
+            "Trade Date Range",
+            value=(minimum_date, maximum_date),
+            min_value=minimum_date,
+            max_value=maximum_date,
+        )
+
+    filtered_dataframe = dataframe.copy()
+
+    if selected_sentiments:
+        filtered_dataframe = filtered_dataframe[
+            filtered_dataframe["sentiment_filter"].isin(selected_sentiments)
+        ]
+
+    if selected_coins:
+        filtered_dataframe = filtered_dataframe[filtered_dataframe["coin"].isin(selected_coins)]
+
+    if selected_directions:
+        filtered_dataframe = filtered_dataframe[
+            filtered_dataframe["direction"].isin(selected_directions)
+        ]
+
+    if len(selected_date_range) == 2:
+        start_date, end_date = selected_date_range
+        filtered_dataframe = filtered_dataframe[
+            (filtered_dataframe["trade_date"].dt.date >= start_date)
+            & (filtered_dataframe["trade_date"].dt.date <= end_date)
+        ]
+
+    return filtered_dataframe
 
 
 missing_files = validate_required_files()
@@ -118,69 +181,31 @@ st.title("Bitcoin Market Sentiment and Trader Performance Analysis")
 st.caption("Interactive dashboard built from processed project outputs.")
 
 if missing_files:
-    st.error("Some required Phase 7 input files are missing.")
-    st.dataframe(pd.DataFrame({"missing_file": [str(path) for path in missing_files]}))
+    st.error("Some required dashboard summary files are missing.")
+    st.dataframe(
+        pd.DataFrame({"missing_file": [str(path) for path in missing_files]}),
+        use_container_width=True,
+    )
     st.stop()
 
-merged_df = load_merged_dataset()
 overall_summary = load_report(REPORT_PATHS["overall"])
 sentiment_summary = load_report(REPORT_PATHS["sentiment"])
 direction_summary = load_report(REPORT_PATHS["direction"])
 coin_summary = load_report(REPORT_PATHS["coin"])
 missing_sentiment_summary = load_report(REPORT_PATHS["missing_sentiment"])
+has_merged_dataset = MERGED_DATA_PATH.exists()
 
 st.success("Dashboard inputs loaded successfully.")
 
-with st.sidebar:
-    st.header("Filters")
-
-    sentiment_options = sorted(merged_df["sentiment_filter"].unique().tolist())
-    selected_sentiments = st.multiselect(
-        "Sentiment",
-        options=sentiment_options,
-        default=sentiment_options,
+if has_merged_dataset:
+    merged_df = load_merged_dataset()
+    filtered_df = apply_dashboard_filters(merged_df)
+else:
+    filtered_df = pd.DataFrame()
+    st.info(
+        "Public deployment mode is using summary reports only. "
+        "Add data/processed/trader_sentiment_merged.csv locally for filters and row previews."
     )
-
-    coin_options = sorted(merged_df["coin"].dropna().unique().tolist())
-    selected_coins = st.multiselect(
-        "Coin",
-        options=coin_options,
-        default=coin_options,
-    )
-
-    direction_options = sorted(merged_df["direction"].dropna().unique().tolist())
-    selected_directions = st.multiselect(
-        "Direction",
-        options=direction_options,
-        default=direction_options,
-    )
-
-    minimum_date = merged_df["trade_date"].min().date()
-    maximum_date = merged_df["trade_date"].max().date()
-    selected_date_range = st.date_input(
-        "Trade Date Range",
-        value=(minimum_date, maximum_date),
-        min_value=minimum_date,
-        max_value=maximum_date,
-    )
-
-filtered_df = merged_df.copy()
-
-if selected_sentiments:
-    filtered_df = filtered_df[filtered_df["sentiment_filter"].isin(selected_sentiments)]
-
-if selected_coins:
-    filtered_df = filtered_df[filtered_df["coin"].isin(selected_coins)]
-
-if selected_directions:
-    filtered_df = filtered_df[filtered_df["direction"].isin(selected_directions)]
-
-if len(selected_date_range) == 2:
-    start_date, end_date = selected_date_range
-    filtered_df = filtered_df[
-        (filtered_df["trade_date"].dt.date >= start_date)
-        & (filtered_df["trade_date"].dt.date <= end_date)
-    ]
 
 st.subheader("Overall Project Metrics")
 overall_row = overall_summary.iloc[0]
@@ -202,11 +227,12 @@ overall_columns[6].metric(
     format_integer(overall_row["missing_sentiment_rows"]),
 )
 
-st.subheader("Filtered Dataset Summary")
-render_metric_row(calculate_filtered_metrics(filtered_df))
+if has_merged_dataset:
+    st.subheader("Filtered Dataset Summary")
+    render_metric_row(calculate_filtered_metrics(filtered_df))
 
-if filtered_df.empty:
-    st.warning("No rows match the selected filters.")
+    if filtered_df.empty:
+        st.warning("No rows match the selected filters.")
 
 sentiment_tab, direction_tab, coin_tab, pnl_tab, missing_tab, data_tab = st.tabs(
     [
@@ -221,7 +247,7 @@ sentiment_tab, direction_tab, coin_tab, pnl_tab, missing_tab, data_tab = st.tabs
 
 with sentiment_tab:
     st.subheader("Sentiment Analysis")
-    st.dataframe(sentiment_summary, width="stretch")
+    st.dataframe(sentiment_summary, use_container_width=True)
     left_column, right_column = st.columns(2)
     with left_column:
         render_chart(
@@ -238,7 +264,7 @@ with sentiment_tab:
 
 with direction_tab:
     st.subheader("Direction Analysis")
-    st.dataframe(direction_summary, width="stretch")
+    st.dataframe(direction_summary, use_container_width=True)
     left_column, right_column = st.columns(2)
     with left_column:
         render_chart(
@@ -250,7 +276,7 @@ with direction_tab:
 
 with coin_tab:
     st.subheader("Coin Analysis")
-    st.dataframe(coin_summary, width="stretch")
+    st.dataframe(coin_summary, use_container_width=True)
     left_column, right_column = st.columns(2)
     with left_column:
         render_chart(
@@ -274,21 +300,24 @@ with missing_tab:
         st.warning(f"{missing_rows} rows do not have matching sentiment data.")
     else:
         st.success("No missing sentiment rows found.")
-    st.dataframe(missing_sentiment_summary, width="stretch")
+    st.dataframe(missing_sentiment_summary, use_container_width=True)
 
 with data_tab:
-    st.subheader("Filtered Data Preview")
-    st.caption("Showing up to 500 filtered rows.")
-    preview_columns = [
-        "trade_date",
-        "coin",
-        "direction",
-        "side",
-        "size_usd",
-        "closed_pnl",
-        "sentiment_value",
-        "sentiment_classification",
-        "is_profitable",
-    ]
-    st.dataframe(filtered_df[preview_columns].head(500), width="stretch")
-
+    if has_merged_dataset:
+        st.subheader("Filtered Data Preview")
+        st.caption("Showing up to 500 filtered rows.")
+        preview_columns = [
+            "trade_date",
+            "coin",
+            "direction",
+            "side",
+            "size_usd",
+            "closed_pnl",
+            "sentiment_value",
+            "sentiment_classification",
+            "is_profitable",
+        ]
+        st.dataframe(filtered_df[preview_columns].head(500), use_container_width=True)
+    else:
+        st.subheader("Public Summary Preview")
+        st.dataframe(sentiment_summary, use_container_width=True)
