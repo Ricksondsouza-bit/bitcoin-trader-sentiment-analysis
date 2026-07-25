@@ -108,9 +108,9 @@ def render_chart(path: Path, caption: str) -> None:
     public_path = PUBLIC_CHARTS_DIR / path.name
 
     if path.exists():
-        st.image(str(path), caption=caption, use_container_width=True)
+        st.image(str(path), caption=caption, width="stretch")
     elif public_path.exists():
-        st.image(str(public_path), caption=caption, use_container_width=True)
+        st.image(str(public_path), caption=caption, width="stretch")
     else:
         st.warning(f"Missing chart file: {path.name}")
 
@@ -184,7 +184,7 @@ if missing_files:
     st.error("Some required dashboard summary files are missing.")
     st.dataframe(
         pd.DataFrame({"missing_file": [str(path) for path in missing_files]}),
-        use_container_width=True,
+        width="stretch",
     )
     st.stop()
 
@@ -247,7 +247,7 @@ sentiment_tab, direction_tab, coin_tab, pnl_tab, missing_tab, data_tab = st.tabs
 
 with sentiment_tab:
     st.subheader("Sentiment Analysis")
-    st.dataframe(sentiment_summary, use_container_width=True)
+    st.dataframe(sentiment_summary, width="stretch")
     left_column, right_column = st.columns(2)
     with left_column:
         render_chart(
@@ -264,7 +264,7 @@ with sentiment_tab:
 
 with direction_tab:
     st.subheader("Direction Analysis")
-    st.dataframe(direction_summary, use_container_width=True)
+    st.dataframe(direction_summary, width="stretch")
     left_column, right_column = st.columns(2)
     with left_column:
         render_chart(
@@ -276,7 +276,7 @@ with direction_tab:
 
 with coin_tab:
     st.subheader("Coin Analysis")
-    st.dataframe(coin_summary, use_container_width=True)
+    st.dataframe(coin_summary, width="stretch")
     left_column, right_column = st.columns(2)
     with left_column:
         render_chart(
@@ -300,7 +300,7 @@ with missing_tab:
         st.warning(f"{missing_rows} rows do not have matching sentiment data.")
     else:
         st.success("No missing sentiment rows found.")
-    st.dataframe(missing_sentiment_summary, use_container_width=True)
+    st.dataframe(missing_sentiment_summary, width="stretch")
 
 with data_tab:
     if has_merged_dataset:
@@ -317,7 +317,7 @@ with data_tab:
             "sentiment_classification",
             "is_profitable",
         ]
-        st.dataframe(filtered_df[preview_columns].head(500), use_container_width=True)
+        st.dataframe(filtered_df[preview_columns].head(500), width="stretch")
     else:
         st.subheader("Public Summary Preview")
-        st.dataframe(sentiment_summary, use_container_width=True)
+        st.dataframe(sentiment_summary, width="stretch")
